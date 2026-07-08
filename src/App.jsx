@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import {
   Lightbulb, Palette, Target, Megaphone, BarChart3, Cpu, MessageCircle,
   PartyPopper, Users, Wallet, Heart, Dumbbell, GraduationCap, Bot,
-  ChevronRight, RotateCcw, Flag, MapPin, Sparkles, AlertTriangle,
+  ChevronRight, RotateCcw, Flag, MapPin, Sparkles, AlertTriangle, Flame,
 } from 'lucide-react';
 
 /* ---------------------------------- 토큰 ---------------------------------- */
@@ -48,11 +48,64 @@ const SCENARIOS = [
   { id: 'pessimistic', label: '비관 시나리오', mult: 0.85, desc: '변화가 사람보다 빠르게 온다' },
 ];
 
-const CHOICES = [
-  { id: 'health', label: '건강·웰빙 우선', icon: Heart, dHealth: 8, dStability: -2, desc: '충분한 휴식과 마음 관리에 시간을 쓴다' },
-  { id: 'exercise', label: '운동 습관 강화', icon: Dumbbell, dHealth: 6, dStability: 1, desc: '체력을 기반 삼아 일하는 방식을 바꾼다' },
-  { id: 'learning', label: '재교육·학습 투자', icon: GraduationCap, dHealth: -3, dStability: 7, desc: '새 역량을 배우는 데 시간을 쓴다' },
-  { id: 'ai', label: 'AI 툴 적극 활용', icon: Bot, dHealth: -1, dStability: 9, desc: '업무 방식 자체를 AI 중심으로 바꾼다' },
+const TAG_META = {
+  care: { label: '건강·웰빙', icon: Heart, color: C.rose },
+  growth: { label: '커리어 성장', icon: GraduationCap, color: C.teal },
+  risk: { label: '과감한 승부수', icon: Flame, color: C.gold },
+};
+
+// 근속연차 기준 5개의 '커리어 모멘텀' — 매 라운드가 곧 하나의 인생 갈림길
+const CAREER_MOMENTS = [
+  {
+    offset: 2,
+    title: '번아웃의 첫 신호',
+    situation: (job) => `${job.label} 업무에 익숙해질 무렵, 야근이 일상이 되고 몸의 신호가 오기 시작했다.`,
+    options: [
+      { tag: 'care', label: '속도를 줄이고 회복한다', desc: '이번 프로젝트에서 한 발 물러나 컨디션을 되찾는다', dHealth: 10, dStability: -3 },
+      { tag: 'risk', label: '일단 밀어붙인다', desc: '이 악물고 버텨서 신뢰를 쌓는다', dHealth: -8, dStability: 5 },
+      { tag: 'growth', label: '동료와 업무를 나눈다', desc: '팀에 도움을 요청해 균형을 맞춘다', dHealth: 4, dStability: 2 },
+    ],
+  },
+  {
+    offset: 4,
+    title: '이직 제안',
+    situation: (job) => `다른 회사에서 ${job.label} 포지션으로 이직 제안이 들어왔다.`,
+    options: [
+      { tag: 'risk', label: '이직한다', desc: '새로운 환경에서 다시 시작한다', dHealth: 6, dStability: -6 },
+      { tag: 'growth', label: '남아서 승진을 협상한다', desc: '지금 자리에서 조건을 걸고 버틴다', dHealth: -4, dStability: 8 },
+      { tag: 'care', label: '일단 거절하고 지켜본다', desc: '관망하며 상황을 본다', dHealth: 2, dStability: -1 },
+    ],
+  },
+  {
+    offset: 6,
+    title: '팀 리더 전환점',
+    situation: (job) => `팀장 자리가 제안됐다. ${job.label} 실무를 계속할지, 관리자로 전환할지 갈림길에 섰다.`,
+    options: [
+      { tag: 'growth', label: '관리자로 전환한다', desc: '사람 관리의 무게를 짊어진다', dHealth: -6, dStability: 9 },
+      { tag: 'care', label: '실무 전문가로 남는다', desc: '깊이를 택하고 관리는 내려놓는다', dHealth: 5, dStability: 2 },
+      { tag: 'risk', label: '일단 팀장 대행만 맡는다', desc: '책임은 지되 타이틀은 미룬다', dHealth: -2, dStability: 3 },
+    ],
+  },
+  {
+    offset: 9,
+    title: 'AI발 구조조정',
+    situation: (job) => `AI 자동화 도입으로 ${job.label} 팀 인원을 줄이자는 논의가 시작됐다.`,
+    options: [
+      { tag: 'growth', label: 'AI 툴 전문가로 자리매김한다', desc: '팀 안에서 AI를 가장 잘 다루는 사람이 된다', dHealth: -3, dStability: 10 },
+      { tag: 'risk', label: '이 기회에 독립을 준비한다', desc: '회사 밖 생존을 미리 준비한다', dHealth: 3, dStability: -5 },
+      { tag: 'care', label: '버티며 상황을 지켜본다', desc: '일단 조용히 자리를 지킨다', dHealth: -5, dStability: -4 },
+    ],
+  },
+  {
+    offset: 13,
+    title: '시니어의 갈림길',
+    situation: (job) => `이제 ${job.label} 업계에서 '시니어'로 불린다. 임원, 독립, 현역 유지 중 하나를 골라야 한다.`,
+    options: [
+      { tag: 'growth', label: '임원 트랙에 도전한다', desc: '조직의 방향을 만드는 자리로 간다', dHealth: -7, dStability: 8 },
+      { tag: 'risk', label: '독립해서 내 사업을 차린다', desc: '리스크를 안고 내 이름을 건다', dHealth: -2, dStability: -3 },
+      { tag: 'care', label: '지금처럼 현역으로 남는다', desc: '익숙한 자리에서 안정적으로 간다', dHealth: 6, dStability: 1 },
+    ],
+  },
 ];
 
 const JOB_AI_TIP = {
@@ -68,8 +121,9 @@ const JOB_AI_TIP = {
   finance: 'AI로 반복되는 정산·리포트 업무를 자동화해보세요.',
 };
 
-const HEALTH_TIP = '짧더라도 쉬는 시간을 루틴으로 만들어보세요. 업무 강도가 계속 높다면 팀장님과 먼저 상의해보는 것도 방법입니다.';
-const STABILITY_TIP = '루틴 업무 중 하나를 골라 AI 툴로 대체해보는 작은 실험부터 시작해보세요.';
+const searchUrl = (base, q) => `${base}${encodeURIComponent(q)}`;
+const youtubeSearch = (q) => searchUrl('https://www.youtube.com/results?search_query=', q);
+const googleSearch = (q) => searchUrl('https://www.google.com/search?q=', q);
 
 function moodFromStats(health, stability) {
   const avg = (health + stability) / 2;
@@ -80,150 +134,59 @@ function moodFromStats(health, stability) {
 
 function buildRecommendations(job, stats, log) {
   const recs = [];
-  recs.push(
-    stats.health <= stats.stability
-      ? { icon: Heart, text: HEALTH_TIP }
-      : { icon: Bot, text: STABILITY_TIP }
-  );
-  recs.push({ icon: job.icon, text: `[${job.label}] ${JOB_AI_TIP[job.id]}` });
-  const pickedIds = new Set(log.map((c) => c.id));
-  const missing = CHOICES.find((c) => !pickedIds.has(c.id));
-  recs.push(
-    missing
-      ? { icon: missing.icon, text: `이번엔 '${missing.label}'을 한 번도 선택하지 않았어요. 다음 판엔 넣어보면 결과가 달라질 거예요.` }
-      : { icon: Sparkles, text: '5단계 동안 네 가지 방향을 골고루 선택했어요. 균형 잡힌 여정이었습니다.' }
-  );
+
+  // 1. 더 약한 축을 기준으로 한 실질적 컨텐츠 연결
+  if (stats.health <= stats.stability) {
+    recs.push({
+      icon: Heart,
+      text: '건강 회복이 우선이에요. 하루 10분이라도 홈트레이닝을 루틴으로 만들어보세요.',
+      href: youtubeSearch('직장인 홈트레이닝 10분'),
+      linkLabel: '운동 영상 찾아보기 →',
+    });
+  } else {
+    recs.push({
+      icon: Bot,
+      text: `[${job.label}] ${JOB_AI_TIP[job.id]}`,
+      href: youtubeSearch(`${job.label} 업무 AI 활용법`),
+      linkLabel: '관련 영상 찾아보기 →',
+    });
+  }
+
+  // 2. 직무 특화 AI 활용 학습 자료 연결
+  recs.push({
+    icon: job.icon,
+    text: `${job.label} 직무에 특화된 AI 활용 사례를 더 찾아보세요.`,
+    href: googleSearch(`${job.label} 업무 AI 활용 사례`),
+    linkLabel: '자료 찾아보기 →',
+  });
+
+  // 3. 커리어 개발 자료 연결
+  recs.push({
+    icon: GraduationCap,
+    text: '장기적인 커리어 로드맵도 한 번씩 점검해보면 좋아요.',
+    href: googleSearch(`${job.label} 커리어 로드맵`),
+    linkLabel: '커리어 자료 찾아보기 →',
+  });
+
+  // 4. 이번 판에 시도하지 않은 성향에 대한 리플레이 유도
+  const pickedTags = new Set(log.map((c) => c.tag));
+  const missingTag = ['care', 'growth', 'risk'].find((t) => !pickedTags.has(t));
+  if (missingTag) {
+    recs.push({
+      icon: TAG_META[missingTag].icon,
+      text: `이번엔 '${TAG_META[missingTag].label}' 성향의 선택을 한 번도 안 했어요. 다음 판엔 넣어보면 결과가 꽤 달라질 거예요.`,
+    });
+  } else {
+    recs.push({ icon: Sparkles, text: '다섯 번의 갈림길에서 세 가지 성향을 골고루 선택했어요. 균형 잡힌 여정이었습니다.' });
+  }
+
   return recs;
 }
 
-const CHOICE_TEXT_BY_JOB = {
-  planning: {
-    health: { label: '야근 대신 칼퇴', desc: '기획 마감이 밀려도 저녁엔 쉰다' },
-    exercise: { label: '출근 전 러닝', desc: '아이디어보다 체력을 먼저 채운다' },
-    learning: { label: '트렌드 리서치 몰입', desc: '새 캠페인 레퍼런스를 파고든다' },
-    ai: { label: 'AI로 기획안 초안 뽑기', desc: '카피·구성안 초안을 AI에 맡겨본다' },
-  },
-  production: {
-    health: { label: '밤샘 작업 줄이기', desc: '시안 마감보다 수면을 지킨다' },
-    exercise: { label: '작업실 스트레칭 루틴', desc: '장시간 앉아있는 몸을 풀어준다' },
-    learning: { label: '새 제작 툴 학습', desc: '레퍼런스보다 새로운 기법을 배운다' },
-    ai: { label: '생성형 이미지 툴 활용', desc: '시안 배리에이션을 AI로 늘려본다' },
-  },
-  strategy: {
-    health: { label: '생각 비우는 시간 갖기', desc: '전략 고민을 잠시 내려놓는다' },
-    exercise: { label: '산책하며 생각 정리', desc: '걸으면서 전략을 다시 본다' },
-    learning: { label: '산업 리포트 정독', desc: '시장 변화를 깊이 있게 공부한다' },
-    ai: { label: 'AI로 경쟁사 분석 자동화', desc: '리서치를 AI 요약에 맡긴다' },
-  },
-  media: {
-    health: { label: '지표 알림 끄고 퇴근', desc: '실시간 확인을 잠시 멈춘다' },
-    exercise: { label: '점심시간 걷기', desc: '책상에서 벗어나 몸을 움직인다' },
-    learning: { label: '새 매체 플랫폼 공부', desc: '떠오르는 채널의 룰을 익힌다' },
-    ai: { label: 'AI 매체 최적화 툴 도입', desc: '입찰·타겟팅을 자동화해본다' },
-  },
-  data: {
-    health: { label: '분석 알림 끄고 퇴근', desc: '숫자에서 잠시 멀어진다' },
-    exercise: { label: '책상에서 일어나 스트레칭', desc: '장시간 모니터 응시를 끊어준다' },
-    learning: { label: '새 분석 기법 공부', desc: '통계·모델링 역량을 늘린다' },
-    ai: { label: '생성형 AI로 리포트 자동 요약', desc: '반복 분석을 AI에 맡겨본다' },
-  },
-  digital: {
-    health: { label: '알림 끄고 디지털 디톡스', desc: '화면에서 잠시 떨어진다' },
-    exercise: { label: '가벼운 홈트', desc: '짧게라도 몸을 움직인다' },
-    learning: { label: '신규 플랫폼 얼리어답터 되기', desc: '새 기능을 가장 먼저 써본다' },
-    ai: { label: 'AI 자동화 파이프라인 구축', desc: '반복 운영 업무를 자동화한다' },
-  },
-  social: {
-    health: { label: '댓글창 그만 보기', desc: '온라인 반응에서 잠시 멀어진다' },
-    exercise: { label: '카메라 끄고 산책', desc: '콘텐츠 대신 몸을 챙긴다' },
-    learning: { label: '밈·트렌드 리서치', desc: '빠르게 변하는 유행을 따라잡는다' },
-    ai: { label: 'AI 콘텐츠 소재 실험', desc: '생성형 AI로 소재를 빠르게 늘린다' },
-  },
-  promotion: {
-    health: { label: '현장 철수 후 휴식', desc: '행사 뒤 컨디션부터 회복한다' },
-    exercise: { label: '현장 답사 걷기', desc: '몸으로 뛰며 감을 잡는다' },
-    learning: { label: '행사 트렌드 벤치마킹', desc: '국내외 사례를 찾아본다' },
-    ai: { label: 'AI로 현장 반응 예측', desc: '데이터로 프로모션 효과를 미리 본다' },
-  },
-  hr: {
-    health: { label: '면담 사이 숨 고르기', desc: '감정노동 뒤 회복 시간을 갖는다' },
-    exercise: { label: '점심 걷기 모임', desc: '동료와 함께 몸을 움직인다' },
-    learning: { label: '조직문화 사례 공부', desc: '다른 회사의 제도를 살펴본다' },
-    ai: { label: 'AI 채용·온보딩 자동화', desc: '반복 행정 업무를 자동화한다' },
-  },
-  finance: {
-    health: { label: '마감 후 휴가 쓰기', desc: '결산 시즌 뒤엔 꼭 쉰다' },
-    exercise: { label: '정산 끝나고 운동', desc: '숫자 대신 몸을 움직인다' },
-    learning: { label: '새 회계 기준 공부', desc: '바뀌는 제도를 미리 익힌다' },
-    ai: { label: 'AI로 정산 업무 자동화', desc: '반복 리포트 작업을 줄인다' },
-  },
-};
-
-const CRISIS_EVENTS = {
-  planning: [
-    { text: '클라이언트가 컨셉을 통째로 뒤집었다', dHealth: -6, dStability: -2 },
-    { text: '경쟁 PT가 갑자기 잡혔다', dHealth: -4, dStability: -4 },
-    { text: '예산이 30% 삭감됐다', dHealth: -2, dStability: -6 },
-  ],
-  production: [
-    { text: '촬영 전날 컷 수가 두 배로 늘었다', dHealth: -7, dStability: -1 },
-    { text: '전면 수정 요청이 들어왔다', dHealth: -5, dStability: -3 },
-    { text: '외주 작업자가 갑자기 펑크났다', dHealth: -3, dStability: -5 },
-  ],
-  strategy: [
-    { text: '시장 데이터가 예측과 다르게 튀었다', dHealth: -3, dStability: -5 },
-    { text: '임원 보고가 하루 앞당겨졌다', dHealth: -6, dStability: -2 },
-    { text: '경쟁사가 먼저 움직였다', dHealth: -2, dStability: -6 },
-  ],
-  media: [
-    { text: '매체 단가가 갑자기 올랐다', dHealth: -2, dStability: -6 },
-    { text: '캠페인 지표가 하루아침에 꺾였다', dHealth: -5, dStability: -3 },
-    { text: '플랫폼 알고리즘이 바뀌었다', dHealth: -3, dStability: -5 },
-  ],
-  data: [
-    { text: '데이터 파이프라인이 새벽에 멈췄다', dHealth: -6, dStability: -2 },
-    { text: '숫자가 안 맞는다며 전면 재검토 요청이 왔다', dHealth: -4, dStability: -4 },
-    { text: '새 분석 툴 도입 압박이 시작됐다', dHealth: -2, dStability: -6 },
-  ],
-  digital: [
-    { text: '서비스 장애가 새벽에 터졌다', dHealth: -7, dStability: -1 },
-    { text: '플랫폼 정책이 하루아침에 바뀌었다', dHealth: -3, dStability: -5 },
-    { text: '레거시 시스템 이슈가 터졌다', dHealth: -5, dStability: -3 },
-  ],
-  social: [
-    { text: '브랜드 계정에 악플이 몰렸다', dHealth: -6, dStability: -2 },
-    { text: '알고리즘이 바뀌어 도달률이 반토막났다', dHealth: -3, dStability: -5 },
-    { text: '경쟁 브랜드 콘텐츠가 먼저 터졌다', dHealth: -4, dStability: -4 },
-  ],
-  promotion: [
-    { text: '현장에 비가 쏟아졌다', dHealth: -5, dStability: -3 },
-    { text: '협력업체가 당일 불참을 통보했다', dHealth: -6, dStability: -2 },
-    { text: '참가자 수가 예상보다 훨씬 많았다', dHealth: -4, dStability: -4 },
-  ],
-  hr: [
-    { text: '갑작스러운 조직개편이 발표됐다', dHealth: -3, dStability: -5 },
-    { text: '퇴사 면담이 연달아 잡혔다', dHealth: -6, dStability: -2 },
-    { text: '채용 공고에 지원자가 안 몰린다', dHealth: -2, dStability: -6 },
-  ],
-  finance: [
-    { text: '결산 마감이 앞당겨졌다', dHealth: -6, dStability: -2 },
-    { text: '세무조사 관련 자료 요청이 왔다', dHealth: -4, dStability: -4 },
-    { text: '예산안이 반려됐다', dHealth: -3, dStability: -5 },
-  ],
-};
-
-function getCrisis(job, roundIndex) {
-  const base = CRISIS_EVENTS[job.id][roundIndex % 3];
-  const mult = 1 + roundIndex * 0.15; // 라운드가 갈수록 위기 강도가 세짐
-  return {
-    text: base.text,
-    dHealth: Math.round(base.dHealth * mult),
-    dStability: Math.round(base.dStability * mult),
-  };
-}
+const RETIREMENT_AGE = 60; // 현행 법정 정년(고령자고용법 제19조) 기준. 65세 연장은 2026년 기준 입법 논의 중, 미확정.
 
 const ENDING_TIERS = [
-  { min: 0, title: '위태로운 생존', desc: '이번 5년, 아슬아슬하게 버텨냈다' },
+  { min: 0, title: '위태로운 생존', desc: '이번 5번의 갈림길, 아슬아슬하게 버텨냈다' },
   { min: 40, title: '적응하는 커리어', desc: '흔들렸지만 균형을 찾아갔다' },
   { min: 70, title: '단단해진 커리어', desc: '변화 속에서도 자리를 지켜냈다' },
 ];
@@ -238,6 +201,7 @@ const initialForm = {
   gender: '',
   job: 'planning',
   scenario: 'baseline',
+  tenureYears: 3,
   weeklyHours: 45,
   subjectiveHealth: 3,
   exerciseFreq: 3,
@@ -444,24 +408,21 @@ function Mascot({ color, mood = 'neutral', accessories = [], size = 120 }) {
       {/* 입 */}
       <path d={mouthPaths[mood]} stroke="#24312C" strokeWidth="4" fill="none" strokeLinecap="round" />
 
-      {/* 아이템 (선택한 방향에 따라 하나씩 추가됨) */}
-      {accessories.includes('exercise') && (
-        <rect x="56" y="60" width="88" height="13" rx="6.5" fill="#fff" stroke={color} strokeWidth="3" />
-      )}
-      {accessories.includes('learning') && (
+      {/* 아이템 (선택한 성향에 따라 하나씩 추가됨) */}
+      {accessories.includes('growth') && (
         <g transform="translate(68,16)">
           <path d="M0,9 L32,0 L64,9 L32,18 Z" fill="#24312C" />
           <rect x="29" y="9" width="6" height="13" fill="#24312C" />
           <circle cx="32" cy="24" r="2.4" fill="#24312C" />
         </g>
       )}
-      {accessories.includes('ai') && (
+      {accessories.includes('risk') && (
         <g>
           <line x1="128" y1="34" x2="132" y2="16" stroke="#24312C" strokeWidth="3" strokeLinecap="round" />
           <circle cx="133" cy="13" r="5" fill="#E3A73B" />
         </g>
       )}
-      {accessories.includes('health') && (
+      {accessories.includes('care') && (
         <path
           d="M150,90 C146,83 137,88 141,96 C144,102 150,107 150,107 C150,107 156,102 159,96 C163,88 154,83 150,90 Z"
           fill="#F1654A"
@@ -475,15 +436,14 @@ function Mascot({ color, mood = 'neutral', accessories = [], size = 120 }) {
 export default function CareerSurvivalGame() {
   const [step, setStep] = useState(0); // 0: 정보입력, 1: 시뮬레이션, 2: 리포트
   const [form, setForm] = useState(initialForm);
-  const [round, setRound] = useState(0); // 0~4
+  const [round, setRound] = useState(0); // 0~4 (CAREER_MOMENTS 인덱스)
   const [stats, setStats] = useState({ health: 60, stability: 55 });
   const [startStats, setStartStats] = useState({ health: 60, stability: 55 });
   const [log, setLog] = useState([]);
-  const [currentCrisis, setCurrentCrisis] = useState(null);
 
   const job = useMemo(() => JOB_CATEGORIES.find((j) => j.id === form.job), [form.job]);
   const scenario = useMemo(() => SCENARIOS.find((s) => s.id === form.scenario), [form.scenario]);
-  const accessories = useMemo(() => Array.from(new Set(log.map((c) => c.id))), [log]);
+  const accessories = useMemo(() => Array.from(new Set(log.map((c) => c.tag))), [log]);
   const mood = moodFromStats(stats.health, stats.stability);
 
   function updateForm(key, value) {
@@ -491,47 +451,37 @@ export default function CareerSurvivalGame() {
   }
 
   function startSimulation() {
-    const h0 = clamp(
+    const h = clamp(
       job.baseHealth +
         (form.exerciseFreq - 3) * 2.5 +
         (form.subjectiveHealth - 3) * 3 +
         (form.mentalHealth - 3) * 2 -
         (form.weeklyHours - 40) * 0.3
     );
-    const s0 = clamp(
+    const s = clamp(
       job.baseStability +
         (form.aiUsage - 3) * 3 +
         (form.retrainWill - 3) * 3 -
-        (form.weeklyHours - 40) * 0.15
+        (form.weeklyHours - 40) * 0.15 +
+        (form.tenureYears - 3) * 0.8 // 근속연차가 쌓일수록 기본 안정성에 소폭 가산
     );
-    const crisis0 = getCrisis(job, 0);
-    const h = clamp(h0 + crisis0.dHealth);
-    const s = clamp(s0 + crisis0.dStability);
     setStats({ health: h, stability: s });
-    setStartStats({ health: h0, stability: s0 });
-    setCurrentCrisis(crisis0);
+    setStartStats({ health: h, stability: s });
     setRound(0);
     setLog([]);
     setStep(1);
   }
 
-  function chooseOption(choice) {
-    const dh = choice.dHealth * scenario.mult;
-    const ds = choice.dStability * scenario.mult;
-    let nextHealth = clamp(stats.health + dh);
-    let nextStability = clamp(stats.stability + ds);
-    setLog((l) => [...l, choice]);
-    if (round + 1 >= 5) {
-      setStats({ health: nextHealth, stability: nextStability });
+  function chooseOption(option) {
+    const dh = option.dHealth * scenario.mult;
+    const ds = option.dStability * scenario.mult;
+    const next = { health: clamp(stats.health + dh), stability: clamp(stats.stability + ds) };
+    setStats(next);
+    setLog((l) => [...l, option]);
+    if (round + 1 >= CAREER_MOMENTS.length) {
       setTimeout(() => setStep(2), 150);
     } else {
-      const nextRound = round + 1;
-      const crisis = getCrisis(job, nextRound);
-      nextHealth = clamp(nextHealth + crisis.dHealth);
-      nextStability = clamp(nextStability + crisis.dStability);
-      setStats({ health: nextHealth, stability: nextStability });
-      setCurrentCrisis(crisis);
-      setRound(nextRound);
+      setRound((r) => r + 1);
     }
   }
 
@@ -543,8 +493,13 @@ export default function CareerSurvivalGame() {
   }
 
   const sustainability = Math.round((stats.health + stats.stability) / 2);
-  const workAge = form.age + Math.round((sustainability / 100) * 45);
+  // 정년(60세)을 상한으로 두고, 그 이전 조기 이탈 가능성을 함께 보여준다
+  const rawWorkAge = form.age + Math.round((sustainability / 100) * 40);
+  const workAge = Math.min(RETIREMENT_AGE, rawWorkAge);
+  const reachedRetirement = rawWorkAge >= RETIREMENT_AGE;
   const endingTier = getEndingTier(sustainability);
+  const currentMoment = CAREER_MOMENTS[round];
+  const stageTenure = form.tenureYears + currentMoment.offset;
 
   return (
     <div
@@ -570,7 +525,7 @@ export default function CareerSurvivalGame() {
             AI 시대, 나의 커리어는 얼마나 오래갈까?
           </h1>
           <p style={{ color: C.inkSoft, fontSize: 14, marginTop: 6 }}>
-            5번의 선택으로 완성되는, 나만의 커리어 여정
+            5번의 커리어 모멘텀, 나는 살아남을 수 있을까?
           </p>
         </div>
 
@@ -593,7 +548,7 @@ export default function CareerSurvivalGame() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4 mb-5">
+            <div className="grid grid-cols-3 gap-3 mb-5">
               <div>
                 <label style={{ fontSize: 13, fontWeight: 600 }}>이름</label>
                 <input
@@ -610,6 +565,17 @@ export default function CareerSurvivalGame() {
                   type="number"
                   value={form.age}
                   onChange={(e) => updateForm('age', Number(e.target.value))}
+                  className="w-full mt-1 px-3 py-2 rounded-xl text-sm"
+                  style={{ border: `1px solid ${C.trailBg}`, outline: 'none' }}
+                />
+              </div>
+              <div>
+                <label style={{ fontSize: 13, fontWeight: 600 }}>근속연차</label>
+                <input
+                  type="number"
+                  min={0}
+                  value={form.tenureYears}
+                  onChange={(e) => updateForm('tenureYears', Number(e.target.value))}
                   className="w-full mt-1 px-3 py-2 rounded-xl text-sm"
                   style={{ border: `1px solid ${C.trailBg}`, outline: 'none' }}
                 />
@@ -707,7 +673,7 @@ export default function CareerSurvivalGame() {
           </div>
         )}
 
-        {/* -------------------- STEP 1: 5단계 시뮬레이션 -------------------- */}
+        {/* -------------------- STEP 1: 커리어 모멘텀 시뮬레이션 -------------------- */}
         {step === 1 && (
           <div className="rounded-3xl p-6" style={{ background: C.card, boxShadow: '0 8px 30px rgba(36,49,44,0.06)' }}>
             <TrailMap totalSteps={5} currentIndex={round} accentColor={job.color} />
@@ -717,7 +683,7 @@ export default function CareerSurvivalGame() {
                 className="inline-block px-3 py-1 rounded-full text-xs font-bold"
                 style={{ background: job.soft, color: job.color }}
               >
-                {round + 1} / 5 단계
+                모멘텀 {round + 1} / 5 · 근속 {stageTenure}년차
               </span>
             </div>
 
@@ -744,44 +710,41 @@ export default function CareerSurvivalGame() {
               </div>
             )}
 
-            {currentCrisis && (
-              <div
-                className="flex items-start gap-3 p-4 rounded-2xl mb-4"
-                style={{ background: '#FBEBD3', border: '1px solid #EBC988' }}
-              >
-                <AlertTriangle size={20} color="#B8791E" className="shrink-0 mt-0.5" />
-                <div>
-                  <div style={{ fontWeight: 700, fontSize: 13, color: '#7A5A1E' }}>돌발 상황: {currentCrisis.text}</div>
-                  <div style={{ fontSize: 11.5, color: '#8A6B45', marginTop: 2 }}>
-                    건강 {currentCrisis.dHealth} · 안정성 {currentCrisis.dStability} (이미 반영됨) — 이제 어떻게 대응할까요?
-                  </div>
-                </div>
+            <div
+              className="p-5 rounded-2xl mb-5"
+              style={{ background: job.soft, border: `1px solid ${job.color}33` }}
+            >
+              <div style={{ fontFamily: FONT_DISPLAY, fontSize: 20, color: job.color, marginBottom: 6 }}>
+                {currentMoment.title}
               </div>
-            )}
+              <div style={{ fontSize: 13.5, color: C.ink, lineHeight: 1.6 }}>
+                {currentMoment.situation(job)}
+              </div>
+            </div>
 
             <p className="text-center mb-4" style={{ fontSize: 14, color: C.inkSoft }}>
-              이번 단계, 무엇에 시간을 쓸까요?
+              어떤 선택을 할까요?
             </p>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {CHOICES.map((c) => {
-                const txt = CHOICE_TEXT_BY_JOB[job.id]?.[c.id] || { label: c.label, desc: c.desc };
+            <div className="flex flex-col gap-3">
+              {currentMoment.options.map((opt, i) => {
+                const meta = TAG_META[opt.tag];
                 return (
                   <button
-                    key={c.id}
-                    onClick={() => chooseOption(c)}
+                    key={i}
+                    onClick={() => chooseOption(opt)}
                     className="text-left p-4 rounded-2xl flex items-start gap-3"
                     style={{ border: `1px solid ${C.trailBg}`, background: '#fff' }}
                   >
                     <div
                       className="flex items-center justify-center rounded-xl shrink-0"
-                      style={{ width: 40, height: 40, background: C.bg, color: job.color }}
+                      style={{ width: 40, height: 40, background: C.bg, color: meta.color }}
                     >
-                      <c.icon size={20} />
+                      <meta.icon size={20} />
                     </div>
                     <div>
-                      <div style={{ fontWeight: 700, fontSize: 14 }}>{txt.label}</div>
-                      <div style={{ fontSize: 12, color: C.inkSoft, marginTop: 2 }}>{txt.desc}</div>
+                      <div style={{ fontWeight: 700, fontSize: 14 }}>{opt.label}</div>
+                      <div style={{ fontSize: 12, color: C.inkSoft, marginTop: 2 }}>{opt.desc}</div>
                     </div>
                   </button>
                 );
@@ -806,11 +769,24 @@ export default function CareerSurvivalGame() {
               >
                 {endingTier.title}
               </span>
-              <div style={{ fontSize: 13, color: C.inkSoft }}>{form.name}님의 예상 근로 가능 연령</div>
+              <div style={{ fontSize: 13, color: C.inkSoft }}>
+                {form.name}님의 예상 근로 가능 연령
+              </div>
               <div style={{ fontFamily: FONT_DISPLAY, fontSize: 56, color: job.color, lineHeight: 1.1 }}>
                 {workAge}<span style={{ fontSize: 22 }}>세</span>
               </div>
-              <div style={{ fontSize: 13, color: C.inkSoft }}>
+              <div
+                className="inline-block px-2.5 py-1 rounded-full text-xs font-bold mt-1"
+                style={{
+                  background: reachedRetirement ? C.tealSoft : C.coralSoft,
+                  color: reachedRetirement ? C.teal : C.coral,
+                }}
+              >
+                {reachedRetirement
+                  ? `법정 정년(${RETIREMENT_AGE}세)까지 보장`
+                  : `정년보다 ${RETIREMENT_AGE - workAge}년 이른 조기 이탈 예상`}
+              </div>
+              <div style={{ fontSize: 13, color: C.inkSoft, marginTop: 6 }}>
                 현재 {form.age}세 · {job.label} · 지속가능성 점수 {sustainability}점
               </div>
               <div style={{ fontSize: 12, color: C.inkSoft, marginTop: 4, fontStyle: 'italic' }}>
@@ -834,18 +810,18 @@ export default function CareerSurvivalGame() {
             </div>
 
             <div className="rounded-2xl p-4 mb-4" style={{ background: C.bg }}>
-              <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 8 }}>나의 5단계 선택 일지</div>
+              <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 8 }}>나의 5개 모멘텀 선택 일지</div>
               <div className="flex flex-wrap gap-2">
                 {log.map((c, i) => {
-                  const txt = CHOICE_TEXT_BY_JOB[job.id]?.[c.id] || { label: c.label };
+                  const meta = TAG_META[c.tag];
                   return (
                     <div
                       key={i}
                       className="flex items-center gap-1 px-2 py-1 rounded-full text-xs"
                       style={{ background: '#fff', border: `1px solid ${C.trailBg}` }}
                     >
-                      <c.icon size={12} color={job.color} />
-                      {txt.label}
+                      <meta.icon size={12} color={job.color} />
+                      {c.label}
                     </div>
                   );
                 })}
@@ -854,11 +830,24 @@ export default function CareerSurvivalGame() {
 
             <div className="rounded-2xl p-4 mb-4" style={{ background: C.tealSoft }}>
               <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 8, color: C.teal }}>추천 액션</div>
-              <div className="flex flex-col gap-2">
+              <div className="flex flex-col gap-3">
                 {buildRecommendations(job, stats, log).map((r, i) => (
                   <div key={i} className="flex items-start gap-2">
                     <r.icon size={15} color={C.teal} className="shrink-0 mt-0.5" />
-                    <span style={{ fontSize: 12.5, color: C.ink, lineHeight: 1.5 }}>{r.text}</span>
+                    <div>
+                      <span style={{ fontSize: 12.5, color: C.ink, lineHeight: 1.5 }}>{r.text}</span>
+                      {r.href && (
+                        <a
+                          href={r.href}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="block mt-0.5"
+                          style={{ fontSize: 12, color: C.teal, fontWeight: 700, textDecoration: 'underline' }}
+                        >
+                          {r.linkLabel}
+                        </a>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -867,8 +856,8 @@ export default function CareerSurvivalGame() {
             <div className="flex items-start gap-2 p-3 rounded-2xl mb-6" style={{ background: C.goldSoft }}>
               <Sparkles size={16} color={C.gold} className="shrink-0 mt-0.5" />
               <p style={{ fontSize: 11.5, color: '#7A5A1E', lineHeight: 1.5 }}>
-                이 결과는 실제 역학·노동 통계가 아니라, 게임 진행을 위해 설계된 참고용 추정치입니다.
-                직무별 기준값은 공개 데이터를 참고한 상대적 추정치이며, 향후 실제 데이터로 교체할 수 있습니다.
+                이 시뮬레이션의 커리어 모멘텀과 직무별 기준값은 실제 역학·노동 통계가 아닌, 게임 진행을 위한 참고용 추정치입니다.
+                다만 정년 상한선({RETIREMENT_AGE}세)은 실제 법정 정년(고령자고용법 제19조) 기준을 그대로 반영했습니다.
               </p>
             </div>
 
