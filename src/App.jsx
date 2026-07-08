@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import {
   Lightbulb, Palette, Target, Megaphone, BarChart3, Cpu, MessageCircle,
   PartyPopper, Users, Wallet, Heart, Dumbbell, GraduationCap, Bot,
-  ChevronRight, RotateCcw, Flag, MapPin, Sparkles, AlertTriangle, Flame,
+  ChevronRight, RotateCcw, Flag, MapPin, Sparkles, AlertTriangle, Flame, Eye,
 } from 'lucide-react';
 
 /* ---------------------------------- 토큰 ---------------------------------- */
@@ -49,61 +49,71 @@ const SCENARIOS = [
 ];
 
 const TAG_META = {
-  care: { label: '건강·웰빙', icon: Heart, color: C.rose },
-  growth: { label: '커리어 성장', icon: GraduationCap, color: C.teal },
-  risk: { label: '과감한 승부수', icon: Flame, color: C.gold },
+  hold: { label: '관망·현상유지', icon: Eye, color: C.gold },
+  invest: { label: '커리어 투자', icon: GraduationCap, color: C.teal },
+  bold: { label: '과감한 승부수', icon: Flame, color: C.coral },
+  care: { label: '건강 챙기기', icon: Heart, color: C.rose },
 };
 
-// 근속연차 기준 5개의 '커리어 모멘텀' — 매 라운드가 곧 하나의 인생 갈림길
+// 매 라운드 항상 추가로 켜고 끌 수 있는 건강 액션 — AI 시나리오와 무관하게 항상 동일하게 작동
+const HEALTH_ACTION = {
+  tag: 'care',
+  label: '이번에도 나를 챙긴다',
+  desc: '바쁜 와중에도 짧게라도 쉬는 시간을 사수한다',
+  dHealth: 6,
+  dStability: -2,
+};
+
+// 근속연차 기준 5개의 '커리어 모멘텀' — 매 순간이 "AI로 인해 이 직무가 계속 가능한가"를 묻는다
 const CAREER_MOMENTS = [
   {
     offset: 2,
-    title: '번아웃의 첫 신호',
-    situation: (job) => `${job.label} 업무에 익숙해질 무렵, 야근이 일상이 되고 몸의 신호가 오기 시작했다.`,
+    title: 'AI 툴 첫 도입',
+    situation: (job) => `회사가 ${job.label} 업무에 처음으로 생성형 AI 툴을 도입하기 시작했다. 다들 반신반의하는 분위기다.`,
     options: [
-      { tag: 'care', label: '속도를 줄이고 회복한다', desc: '이번 프로젝트에서 한 발 물러나 컨디션을 되찾는다', dHealth: 10, dStability: -3 },
-      { tag: 'risk', label: '일단 밀어붙인다', desc: '이 악물고 버텨서 신뢰를 쌓는다', dHealth: -8, dStability: 5 },
-      { tag: 'growth', label: '동료와 업무를 나눈다', desc: '팀에 도움을 요청해 균형을 맞춘다', dHealth: 4, dStability: 2 },
+      { tag: 'hold', label: '일단 지켜본다', desc: '무리해서 먼저 나서지 않고 상황을 지켜본다', dHealth: 6, dStability: -6 },
+      { tag: 'invest', label: '가장 먼저 배워서 익숙해진다', desc: '업무 시간을 쪼개 새 툴 사용법을 익힌다', dHealth: -4, dStability: 8 },
+      { tag: 'bold', label: '개인 브랜드부터 먼저 쌓는다', desc: '회사 밖에서 AI 활용 노하우를 먼저 알린다', dHealth: -3, dStability: 5 },
     ],
   },
   {
     offset: 4,
-    title: '이직 제안',
-    situation: (job) => `다른 회사에서 ${job.label} 포지션으로 이직 제안이 들어왔다.`,
+    title: 'AI 잘 쓰는 후배의 등장',
+    situation: (job) => `AI 툴을 능숙하게 다루는 후배가 들어오면서, 내 ${job.label} 업무 상당 부분을 빠르게 처리하기 시작했다.`,
     options: [
-      { tag: 'risk', label: '이직한다', desc: '새로운 환경에서 다시 시작한다', dHealth: 6, dStability: -6 },
-      { tag: 'growth', label: '남아서 승진을 협상한다', desc: '지금 자리에서 조건을 걸고 버틴다', dHealth: -4, dStability: 8 },
-      { tag: 'care', label: '일단 거절하고 지켜본다', desc: '관망하며 상황을 본다', dHealth: 2, dStability: -1 },
+      { tag: 'hold', label: '내 경험치로 승부한다', desc: 'AI가 대체 못할 연차의 감각에 집중한다', dHealth: 4, dStability: -3 },
+      { tag: 'invest', label: '후배에게 AI 활용법을 배운다', desc: '자존심을 내려놓고 후배에게 묻는다', dHealth: -3, dStability: 9 },
+      { tag: 'bold', label: '이직 제안을 받아들인다', desc: '이 판을 떠나 새로운 곳에서 다시 시작한다', dHealth: 3, dStability: -7 },
     ],
   },
   {
     offset: 6,
-    title: '팀 리더 전환점',
-    situation: (job) => `팀장 자리가 제안됐다. ${job.label} 실무를 계속할지, 관리자로 전환할지 갈림길에 섰다.`,
+    title: 'AI 전환을 이끄는 자리',
+    situation: (job) => `팀장 자리가 제안됐다. 조건은 하나, 팀의 AI 전환을 이끄는 것. ${job.label} 실무를 계속할지, AI 전환 리더가 될지 갈림길에 섰다.`,
     options: [
-      { tag: 'growth', label: '관리자로 전환한다', desc: '사람 관리의 무게를 짊어진다', dHealth: -6, dStability: 9 },
-      { tag: 'care', label: '실무 전문가로 남는다', desc: '깊이를 택하고 관리는 내려놓는다', dHealth: 5, dStability: 2 },
-      { tag: 'risk', label: '일단 팀장 대행만 맡는다', desc: '책임은 지되 타이틀은 미룬다', dHealth: -2, dStability: 3 },
+      { tag: 'invest', label: 'AI 전환 리더가 된다', desc: '팀의 AI 도입 전체를 설계하고 이끈다', dHealth: -6, dStability: 10 },
+      { tag: 'hold', label: '실무 전문가로 남는다', desc: 'AI 여부와 상관없이 내 실력으로 승부한다', dHealth: 5, dStability: 1 },
+      { tag: 'bold', label: '팀장 대행만 맡는다', desc: '책임은 지되 방향 결정은 유보한다', dHealth: -3, dStability: 2 },
     ],
   },
   {
     offset: 9,
     title: 'AI발 구조조정',
-    situation: (job) => `AI 자동화 도입으로 ${job.label} 팀 인원을 줄이자는 논의가 시작됐다.`,
+    situation: (job) => `경영진이 AI 자동화로 ${job.label} 팀 인원을 줄이는 안을 검토하기 시작했다.`,
     options: [
-      { tag: 'growth', label: 'AI 툴 전문가로 자리매김한다', desc: '팀 안에서 AI를 가장 잘 다루는 사람이 된다', dHealth: -3, dStability: 10 },
-      { tag: 'risk', label: '이 기회에 독립을 준비한다', desc: '회사 밖 생존을 미리 준비한다', dHealth: 3, dStability: -5 },
-      { tag: 'care', label: '버티며 상황을 지켜본다', desc: '일단 조용히 자리를 지킨다', dHealth: -5, dStability: -4 },
+      { tag: 'invest', label: '팀 내 AI 전문가로 자리매김한다', desc: '팀 안에서 AI를 가장 잘 다루는 사람이 된다', dHealth: -3, dStability: 11 },
+      { tag: 'bold', label: 'AI 활용 프리랜서로 독립한다', desc: '이 기회에 회사 밖 생존을 준비한다', dHealth: 2, dStability: -5 },
+      { tag: 'hold', label: '버티며 상황을 지켜본다', desc: '일단 조용히 자리를 지킨다', dHealth: -6, dStability: -5 },
     ],
   },
   {
     offset: 13,
-    title: '시니어의 갈림길',
-    situation: (job) => `이제 ${job.label} 업계에서 '시니어'로 불린다. 임원, 독립, 현역 유지 중 하나를 골라야 한다.`,
+    title: 'AI 네이티브 시대의 업계 재편',
+    situation: (job) => `클라이언트들이 자체 AI 툴로 캠페인을 직접 만들기 시작하며, 대행사와 ${job.label}의 존재 이유 자체가 도마 위에 올랐다.`,
     options: [
-      { tag: 'growth', label: '임원 트랙에 도전한다', desc: '조직의 방향을 만드는 자리로 간다', dHealth: -7, dStability: 8 },
-      { tag: 'risk', label: '독립해서 내 사업을 차린다', desc: '리스크를 안고 내 이름을 건다', dHealth: -2, dStability: -3 },
-      { tag: 'care', label: '지금처럼 현역으로 남는다', desc: '익숙한 자리에서 안정적으로 간다', dHealth: 6, dStability: 1 },
+      { tag: 'invest', label: 'AI 시대형 조직을 설계하는 임원이 된다', desc: '조직 구조 자체를 다시 짠다', dHealth: -7, dStability: 9 },
+      { tag: 'bold', label: 'AI 네이티브 스튜디오를 차린다', desc: '리스크를 안고 내 이름을 건다', dHealth: -3, dStability: -4 },
+      { tag: 'hold', label: '지금 방식 그대로 남는다', desc: '익숙한 방식을 그대로 지킨다', dHealth: 6, dStability: -2 },
     ],
   },
 ];
@@ -168,16 +178,29 @@ function buildRecommendations(job, stats, log) {
     linkLabel: '커리어 자료 찾아보기 →',
   });
 
-  // 4. 이번 판에 시도하지 않은 성향에 대한 리플레이 유도
+  // 4. 이번 판에 시도하지 않은 '주 대응 성향'에 대한 리플레이 유도
   const pickedTags = new Set(log.map((c) => c.tag));
-  const missingTag = ['care', 'growth', 'risk'].find((t) => !pickedTags.has(t));
+  const missingTag = ['hold', 'invest', 'bold'].find((t) => !pickedTags.has(t));
   if (missingTag) {
     recs.push({
       icon: TAG_META[missingTag].icon,
-      text: `이번엔 '${TAG_META[missingTag].label}' 성향의 선택을 한 번도 안 했어요. 다음 판엔 넣어보면 결과가 꽤 달라질 거예요.`,
+      text: `이번엔 '${TAG_META[missingTag].label}' 성향의 대응을 한 번도 안 했어요. 다음 판엔 넣어보면 결과가 꽤 달라질 거예요.`,
     });
   } else {
-    recs.push({ icon: Sparkles, text: '다섯 번의 갈림길에서 세 가지 성향을 골고루 선택했어요. 균형 잡힌 여정이었습니다.' });
+    recs.push({ icon: Sparkles, text: '다섯 번의 갈림길에서 세 가지 대응 성향을 골고루 선택했어요. 균형 잡힌 여정이었습니다.' });
+  }
+
+  // 5. 건강 챙기기 액션을 실제로 활용했는지에 대한 피드백
+  const careCount = log.filter((c) => c.tag === 'care').length;
+  if (careCount === 0) {
+    recs.push({
+      icon: Heart,
+      text: '5번의 갈림길 동안 "이번에도 나를 챙긴다"를 한 번도 켜지 않았어요. 큰 결정 중에도 최소한의 회복 시간은 챙겨보세요.',
+      href: youtubeSearch('직장인 홈트레이닝 10분'),
+      linkLabel: '운동 영상 찾아보기 →',
+    });
+  } else if (careCount >= 4) {
+    recs.push({ icon: Heart, text: '거의 매번 나를 챙기는 선택을 함께했네요. 회복 습관은 꽤 탄탄해 보여요.' });
   }
 
   return recs;
@@ -409,14 +432,14 @@ function Mascot({ color, mood = 'neutral', accessories = [], size = 120 }) {
       <path d={mouthPaths[mood]} stroke="#24312C" strokeWidth="4" fill="none" strokeLinecap="round" />
 
       {/* 아이템 (선택한 성향에 따라 하나씩 추가됨) */}
-      {accessories.includes('growth') && (
+      {accessories.includes('invest') && (
         <g transform="translate(68,16)">
           <path d="M0,9 L32,0 L64,9 L32,18 Z" fill="#24312C" />
           <rect x="29" y="9" width="6" height="13" fill="#24312C" />
           <circle cx="32" cy="24" r="2.4" fill="#24312C" />
         </g>
       )}
-      {accessories.includes('risk') && (
+      {accessories.includes('bold') && (
         <g>
           <line x1="128" y1="34" x2="132" y2="16" stroke="#24312C" strokeWidth="3" strokeLinecap="round" />
           <circle cx="133" cy="13" r="5" fill="#E3A73B" />
@@ -440,6 +463,8 @@ export default function CareerSurvivalGame() {
   const [stats, setStats] = useState({ health: 60, stability: 55 });
   const [startStats, setStartStats] = useState({ health: 60, stability: 55 });
   const [log, setLog] = useState([]);
+  const [selectedOption, setSelectedOption] = useState(null); // 이번 라운드에 고른 주 대응
+  const [healthOn, setHealthOn] = useState(false); // 이번 라운드에 건강 액션도 켰는지
 
   const job = useMemo(() => JOB_CATEGORIES.find((j) => j.id === form.job), [form.job]);
   const scenario = useMemo(() => SCENARIOS.find((s) => s.id === form.scenario), [form.scenario]);
@@ -469,15 +494,21 @@ export default function CareerSurvivalGame() {
     setStartStats({ health: h, stability: s });
     setRound(0);
     setLog([]);
+    setSelectedOption(null);
+    setHealthOn(false);
     setStep(1);
   }
 
-  function chooseOption(option) {
-    const dh = option.dHealth * scenario.mult;
-    const ds = option.dStability * scenario.mult;
+  // 주 대응(hold/invest/bold) 하나 + 건강 액션(on/off)을 함께 반영해 확정
+  function confirmMoment() {
+    if (!selectedOption) return;
+    const dh = selectedOption.dHealth * scenario.mult + (healthOn ? HEALTH_ACTION.dHealth : 0);
+    const ds = selectedOption.dStability * scenario.mult + (healthOn ? HEALTH_ACTION.dStability : 0);
     const next = { health: clamp(stats.health + dh), stability: clamp(stats.stability + ds) };
     setStats(next);
-    setLog((l) => [...l, option]);
+    setLog((l) => [...l, selectedOption, ...(healthOn ? [HEALTH_ACTION] : [])]);
+    setSelectedOption(null);
+    setHealthOn(false);
     if (round + 1 >= CAREER_MOMENTS.length) {
       setTimeout(() => setStep(2), 150);
     } else {
@@ -490,6 +521,8 @@ export default function CareerSurvivalGame() {
     setStep(0);
     setRound(0);
     setLog([]);
+    setSelectedOption(null);
+    setHealthOn(false);
   }
 
   const sustainability = Math.round((stats.health + stats.stability) / 2);
@@ -723,18 +756,22 @@ export default function CareerSurvivalGame() {
             </div>
 
             <p className="text-center mb-4" style={{ fontSize: 14, color: C.inkSoft }}>
-              어떤 선택을 할까요?
+              주 대응을 하나 고르고, 건강도 함께 챙길지 정해보세요
             </p>
 
-            <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-3 mb-4">
               {currentMoment.options.map((opt, i) => {
                 const meta = TAG_META[opt.tag];
+                const isSelected = selectedOption === opt;
                 return (
                   <button
                     key={i}
-                    onClick={() => chooseOption(opt)}
+                    onClick={() => setSelectedOption(opt)}
                     className="text-left p-4 rounded-2xl flex items-start gap-3"
-                    style={{ border: `1px solid ${C.trailBg}`, background: '#fff' }}
+                    style={{
+                      border: `2px solid ${isSelected ? meta.color : C.trailBg}`,
+                      background: isSelected ? `${meta.color}14` : '#fff',
+                    }}
                   >
                     <div
                       className="flex items-center justify-center rounded-xl shrink-0"
@@ -750,6 +787,66 @@ export default function CareerSurvivalGame() {
                 );
               })}
             </div>
+
+            <button
+              onClick={() => setHealthOn((v) => !v)}
+              className="w-full text-left p-4 rounded-2xl flex items-center gap-3 mb-5"
+              style={{
+                border: `2px solid ${healthOn ? C.rose : C.trailBg}`,
+                background: healthOn ? `${C.rose}14` : '#fff',
+              }}
+            >
+              <div
+                className="flex items-center justify-center rounded-xl shrink-0"
+                style={{ width: 40, height: 40, background: C.roseSoft, color: C.rose }}
+              >
+                <Heart size={20} />
+              </div>
+              <div className="flex-1">
+                <div style={{ fontWeight: 700, fontSize: 14 }}>{HEALTH_ACTION.label}</div>
+                <div style={{ fontSize: 12, color: C.inkSoft, marginTop: 2 }}>
+                  {HEALTH_ACTION.desc} (건강 +{HEALTH_ACTION.dHealth} · 안정성 {HEALTH_ACTION.dStability})
+                </div>
+              </div>
+              <div
+                className="rounded-full shrink-0"
+                style={{
+                  width: 40,
+                  height: 22,
+                  background: healthOn ? C.rose : C.trailBg,
+                  position: 'relative',
+                  transition: 'background 0.2s',
+                }}
+              >
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: 2,
+                    left: healthOn ? 20 : 2,
+                    width: 18,
+                    height: 18,
+                    borderRadius: '50%',
+                    background: '#fff',
+                    transition: 'left 0.2s',
+                  }}
+                />
+              </div>
+            </button>
+
+            <button
+              onClick={confirmMoment}
+              disabled={!selectedOption}
+              className="w-full py-3 rounded-2xl flex items-center justify-center gap-2"
+              style={{
+                background: selectedOption ? job.color : C.trailBg,
+                color: '#fff',
+                fontFamily: FONT_DISPLAY,
+                fontSize: 16,
+                cursor: selectedOption ? 'pointer' : 'not-allowed',
+              }}
+            >
+              이 선택으로 진행하기 <ChevronRight size={18} />
+            </button>
           </div>
         )}
 
