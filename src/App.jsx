@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import {
   Lightbulb, Palette, Target, Megaphone, BarChart3, Cpu, MessageCircle,
   PartyPopper, Users, Wallet, Heart, Dumbbell, GraduationCap, Bot,
-  ChevronRight, RotateCcw, Flag, MapPin, Sparkles,
+  ChevronRight, RotateCcw, Flag, MapPin, Sparkles, AlertTriangle,
 } from 'lucide-react';
 
 /* ---------------------------------- 토큰 ---------------------------------- */
@@ -94,6 +94,142 @@ function buildRecommendations(job, stats, log) {
       : { icon: Sparkles, text: '5단계 동안 네 가지 방향을 골고루 선택했어요. 균형 잡힌 여정이었습니다.' }
   );
   return recs;
+}
+
+const CHOICE_TEXT_BY_JOB = {
+  planning: {
+    health: { label: '야근 대신 칼퇴', desc: '기획 마감이 밀려도 저녁엔 쉰다' },
+    exercise: { label: '출근 전 러닝', desc: '아이디어보다 체력을 먼저 채운다' },
+    learning: { label: '트렌드 리서치 몰입', desc: '새 캠페인 레퍼런스를 파고든다' },
+    ai: { label: 'AI로 기획안 초안 뽑기', desc: '카피·구성안 초안을 AI에 맡겨본다' },
+  },
+  production: {
+    health: { label: '밤샘 작업 줄이기', desc: '시안 마감보다 수면을 지킨다' },
+    exercise: { label: '작업실 스트레칭 루틴', desc: '장시간 앉아있는 몸을 풀어준다' },
+    learning: { label: '새 제작 툴 학습', desc: '레퍼런스보다 새로운 기법을 배운다' },
+    ai: { label: '생성형 이미지 툴 활용', desc: '시안 배리에이션을 AI로 늘려본다' },
+  },
+  strategy: {
+    health: { label: '생각 비우는 시간 갖기', desc: '전략 고민을 잠시 내려놓는다' },
+    exercise: { label: '산책하며 생각 정리', desc: '걸으면서 전략을 다시 본다' },
+    learning: { label: '산업 리포트 정독', desc: '시장 변화를 깊이 있게 공부한다' },
+    ai: { label: 'AI로 경쟁사 분석 자동화', desc: '리서치를 AI 요약에 맡긴다' },
+  },
+  media: {
+    health: { label: '지표 알림 끄고 퇴근', desc: '실시간 확인을 잠시 멈춘다' },
+    exercise: { label: '점심시간 걷기', desc: '책상에서 벗어나 몸을 움직인다' },
+    learning: { label: '새 매체 플랫폼 공부', desc: '떠오르는 채널의 룰을 익힌다' },
+    ai: { label: 'AI 매체 최적화 툴 도입', desc: '입찰·타겟팅을 자동화해본다' },
+  },
+  data: {
+    health: { label: '분석 알림 끄고 퇴근', desc: '숫자에서 잠시 멀어진다' },
+    exercise: { label: '책상에서 일어나 스트레칭', desc: '장시간 모니터 응시를 끊어준다' },
+    learning: { label: '새 분석 기법 공부', desc: '통계·모델링 역량을 늘린다' },
+    ai: { label: '생성형 AI로 리포트 자동 요약', desc: '반복 분석을 AI에 맡겨본다' },
+  },
+  digital: {
+    health: { label: '알림 끄고 디지털 디톡스', desc: '화면에서 잠시 떨어진다' },
+    exercise: { label: '가벼운 홈트', desc: '짧게라도 몸을 움직인다' },
+    learning: { label: '신규 플랫폼 얼리어답터 되기', desc: '새 기능을 가장 먼저 써본다' },
+    ai: { label: 'AI 자동화 파이프라인 구축', desc: '반복 운영 업무를 자동화한다' },
+  },
+  social: {
+    health: { label: '댓글창 그만 보기', desc: '온라인 반응에서 잠시 멀어진다' },
+    exercise: { label: '카메라 끄고 산책', desc: '콘텐츠 대신 몸을 챙긴다' },
+    learning: { label: '밈·트렌드 리서치', desc: '빠르게 변하는 유행을 따라잡는다' },
+    ai: { label: 'AI 콘텐츠 소재 실험', desc: '생성형 AI로 소재를 빠르게 늘린다' },
+  },
+  promotion: {
+    health: { label: '현장 철수 후 휴식', desc: '행사 뒤 컨디션부터 회복한다' },
+    exercise: { label: '현장 답사 걷기', desc: '몸으로 뛰며 감을 잡는다' },
+    learning: { label: '행사 트렌드 벤치마킹', desc: '국내외 사례를 찾아본다' },
+    ai: { label: 'AI로 현장 반응 예측', desc: '데이터로 프로모션 효과를 미리 본다' },
+  },
+  hr: {
+    health: { label: '면담 사이 숨 고르기', desc: '감정노동 뒤 회복 시간을 갖는다' },
+    exercise: { label: '점심 걷기 모임', desc: '동료와 함께 몸을 움직인다' },
+    learning: { label: '조직문화 사례 공부', desc: '다른 회사의 제도를 살펴본다' },
+    ai: { label: 'AI 채용·온보딩 자동화', desc: '반복 행정 업무를 자동화한다' },
+  },
+  finance: {
+    health: { label: '마감 후 휴가 쓰기', desc: '결산 시즌 뒤엔 꼭 쉰다' },
+    exercise: { label: '정산 끝나고 운동', desc: '숫자 대신 몸을 움직인다' },
+    learning: { label: '새 회계 기준 공부', desc: '바뀌는 제도를 미리 익힌다' },
+    ai: { label: 'AI로 정산 업무 자동화', desc: '반복 리포트 작업을 줄인다' },
+  },
+};
+
+const CRISIS_EVENTS = {
+  planning: [
+    { text: '클라이언트가 컨셉을 통째로 뒤집었다', dHealth: -6, dStability: -2 },
+    { text: '경쟁 PT가 갑자기 잡혔다', dHealth: -4, dStability: -4 },
+    { text: '예산이 30% 삭감됐다', dHealth: -2, dStability: -6 },
+  ],
+  production: [
+    { text: '촬영 전날 컷 수가 두 배로 늘었다', dHealth: -7, dStability: -1 },
+    { text: '전면 수정 요청이 들어왔다', dHealth: -5, dStability: -3 },
+    { text: '외주 작업자가 갑자기 펑크났다', dHealth: -3, dStability: -5 },
+  ],
+  strategy: [
+    { text: '시장 데이터가 예측과 다르게 튀었다', dHealth: -3, dStability: -5 },
+    { text: '임원 보고가 하루 앞당겨졌다', dHealth: -6, dStability: -2 },
+    { text: '경쟁사가 먼저 움직였다', dHealth: -2, dStability: -6 },
+  ],
+  media: [
+    { text: '매체 단가가 갑자기 올랐다', dHealth: -2, dStability: -6 },
+    { text: '캠페인 지표가 하루아침에 꺾였다', dHealth: -5, dStability: -3 },
+    { text: '플랫폼 알고리즘이 바뀌었다', dHealth: -3, dStability: -5 },
+  ],
+  data: [
+    { text: '데이터 파이프라인이 새벽에 멈췄다', dHealth: -6, dStability: -2 },
+    { text: '숫자가 안 맞는다며 전면 재검토 요청이 왔다', dHealth: -4, dStability: -4 },
+    { text: '새 분석 툴 도입 압박이 시작됐다', dHealth: -2, dStability: -6 },
+  ],
+  digital: [
+    { text: '서비스 장애가 새벽에 터졌다', dHealth: -7, dStability: -1 },
+    { text: '플랫폼 정책이 하루아침에 바뀌었다', dHealth: -3, dStability: -5 },
+    { text: '레거시 시스템 이슈가 터졌다', dHealth: -5, dStability: -3 },
+  ],
+  social: [
+    { text: '브랜드 계정에 악플이 몰렸다', dHealth: -6, dStability: -2 },
+    { text: '알고리즘이 바뀌어 도달률이 반토막났다', dHealth: -3, dStability: -5 },
+    { text: '경쟁 브랜드 콘텐츠가 먼저 터졌다', dHealth: -4, dStability: -4 },
+  ],
+  promotion: [
+    { text: '현장에 비가 쏟아졌다', dHealth: -5, dStability: -3 },
+    { text: '협력업체가 당일 불참을 통보했다', dHealth: -6, dStability: -2 },
+    { text: '참가자 수가 예상보다 훨씬 많았다', dHealth: -4, dStability: -4 },
+  ],
+  hr: [
+    { text: '갑작스러운 조직개편이 발표됐다', dHealth: -3, dStability: -5 },
+    { text: '퇴사 면담이 연달아 잡혔다', dHealth: -6, dStability: -2 },
+    { text: '채용 공고에 지원자가 안 몰린다', dHealth: -2, dStability: -6 },
+  ],
+  finance: [
+    { text: '결산 마감이 앞당겨졌다', dHealth: -6, dStability: -2 },
+    { text: '세무조사 관련 자료 요청이 왔다', dHealth: -4, dStability: -4 },
+    { text: '예산안이 반려됐다', dHealth: -3, dStability: -5 },
+  ],
+};
+
+function getCrisis(job, roundIndex) {
+  const base = CRISIS_EVENTS[job.id][roundIndex % 3];
+  const mult = 1 + roundIndex * 0.15; // 라운드가 갈수록 위기 강도가 세짐
+  return {
+    text: base.text,
+    dHealth: Math.round(base.dHealth * mult),
+    dStability: Math.round(base.dStability * mult),
+  };
+}
+
+const ENDING_TIERS = [
+  { min: 0, title: '위태로운 생존', desc: '이번 5년, 아슬아슬하게 버텨냈다' },
+  { min: 40, title: '적응하는 커리어', desc: '흔들렸지만 균형을 찾아갔다' },
+  { min: 70, title: '단단해진 커리어', desc: '변화 속에서도 자리를 지켜냈다' },
+];
+
+function getEndingTier(sustainability) {
+  return [...ENDING_TIERS].reverse().find((t) => sustainability >= t.min);
 }
 
 const initialForm = {
@@ -343,6 +479,7 @@ export default function CareerSurvivalGame() {
   const [stats, setStats] = useState({ health: 60, stability: 55 });
   const [startStats, setStartStats] = useState({ health: 60, stability: 55 });
   const [log, setLog] = useState([]);
+  const [currentCrisis, setCurrentCrisis] = useState(null);
 
   const job = useMemo(() => JOB_CATEGORIES.find((j) => j.id === form.job), [form.job]);
   const scenario = useMemo(() => SCENARIOS.find((s) => s.id === form.scenario), [form.scenario]);
@@ -354,21 +491,25 @@ export default function CareerSurvivalGame() {
   }
 
   function startSimulation() {
-    const h = clamp(
+    const h0 = clamp(
       job.baseHealth +
         (form.exerciseFreq - 3) * 2.5 +
         (form.subjectiveHealth - 3) * 3 +
         (form.mentalHealth - 3) * 2 -
         (form.weeklyHours - 40) * 0.3
     );
-    const s = clamp(
+    const s0 = clamp(
       job.baseStability +
         (form.aiUsage - 3) * 3 +
         (form.retrainWill - 3) * 3 -
         (form.weeklyHours - 40) * 0.15
     );
+    const crisis0 = getCrisis(job, 0);
+    const h = clamp(h0 + crisis0.dHealth);
+    const s = clamp(s0 + crisis0.dStability);
     setStats({ health: h, stability: s });
-    setStartStats({ health: h, stability: s });
+    setStartStats({ health: h0, stability: s0 });
+    setCurrentCrisis(crisis0);
     setRound(0);
     setLog([]);
     setStep(1);
@@ -377,13 +518,20 @@ export default function CareerSurvivalGame() {
   function chooseOption(choice) {
     const dh = choice.dHealth * scenario.mult;
     const ds = choice.dStability * scenario.mult;
-    const next = { health: clamp(stats.health + dh), stability: clamp(stats.stability + ds) };
-    setStats(next);
+    let nextHealth = clamp(stats.health + dh);
+    let nextStability = clamp(stats.stability + ds);
     setLog((l) => [...l, choice]);
     if (round + 1 >= 5) {
+      setStats({ health: nextHealth, stability: nextStability });
       setTimeout(() => setStep(2), 150);
     } else {
-      setRound((r) => r + 1);
+      const nextRound = round + 1;
+      const crisis = getCrisis(job, nextRound);
+      nextHealth = clamp(nextHealth + crisis.dHealth);
+      nextStability = clamp(nextStability + crisis.dStability);
+      setStats({ health: nextHealth, stability: nextStability });
+      setCurrentCrisis(crisis);
+      setRound(nextRound);
     }
   }
 
@@ -396,6 +544,7 @@ export default function CareerSurvivalGame() {
 
   const sustainability = Math.round((stats.health + stats.stability) / 2);
   const workAge = form.age + Math.round((sustainability / 100) * 45);
+  const endingTier = getEndingTier(sustainability);
 
   return (
     <div
@@ -576,35 +725,67 @@ export default function CareerSurvivalGame() {
               <Mascot color={job.color} mood={mood} accessories={accessories} size={110} />
             </div>
 
-            <div className="grid grid-cols-2 gap-3 mb-6">
+            <div className="grid grid-cols-2 gap-3 mb-2">
               <StatBar label="건강" value={stats.health} color={C.rose} />
               <StatBar label="직업 안정성" value={stats.stability} color={C.teal} />
             </div>
+
+            {(stats.health < 30 || stats.stability < 30) && (
+              <div
+                className="flex items-center gap-2 px-3 py-2 rounded-xl mb-4 text-xs font-bold"
+                style={{ background: '#FCE3DC', color: '#B33A2E' }}
+              >
+                <AlertTriangle size={14} />
+                {stats.health < 30 && stats.stability < 30
+                  ? '건강과 직업 안정성 모두 위험 수위예요'
+                  : stats.health < 30
+                  ? '건강이 위험 수위예요'
+                  : '직업 안정성이 위험 수위예요'}
+              </div>
+            )}
+
+            {currentCrisis && (
+              <div
+                className="flex items-start gap-3 p-4 rounded-2xl mb-4"
+                style={{ background: '#FBEBD3', border: '1px solid #EBC988' }}
+              >
+                <AlertTriangle size={20} color="#B8791E" className="shrink-0 mt-0.5" />
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: 13, color: '#7A5A1E' }}>돌발 상황: {currentCrisis.text}</div>
+                  <div style={{ fontSize: 11.5, color: '#8A6B45', marginTop: 2 }}>
+                    건강 {currentCrisis.dHealth} · 안정성 {currentCrisis.dStability} (이미 반영됨) — 이제 어떻게 대응할까요?
+                  </div>
+                </div>
+              </div>
+            )}
 
             <p className="text-center mb-4" style={{ fontSize: 14, color: C.inkSoft }}>
               이번 단계, 무엇에 시간을 쓸까요?
             </p>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {CHOICES.map((c) => (
-                <button
-                  key={c.id}
-                  onClick={() => chooseOption(c)}
-                  className="text-left p-4 rounded-2xl flex items-start gap-3"
-                  style={{ border: `1px solid ${C.trailBg}`, background: '#fff' }}
-                >
-                  <div
-                    className="flex items-center justify-center rounded-xl shrink-0"
-                    style={{ width: 40, height: 40, background: C.bg, color: job.color }}
+              {CHOICES.map((c) => {
+                const txt = CHOICE_TEXT_BY_JOB[job.id]?.[c.id] || { label: c.label, desc: c.desc };
+                return (
+                  <button
+                    key={c.id}
+                    onClick={() => chooseOption(c)}
+                    className="text-left p-4 rounded-2xl flex items-start gap-3"
+                    style={{ border: `1px solid ${C.trailBg}`, background: '#fff' }}
                   >
-                    <c.icon size={20} />
-                  </div>
-                  <div>
-                    <div style={{ fontWeight: 700, fontSize: 14 }}>{c.label}</div>
-                    <div style={{ fontSize: 12, color: C.inkSoft, marginTop: 2 }}>{c.desc}</div>
-                  </div>
-                </button>
-              ))}
+                    <div
+                      className="flex items-center justify-center rounded-xl shrink-0"
+                      style={{ width: 40, height: 40, background: C.bg, color: job.color }}
+                    >
+                      <c.icon size={20} />
+                    </div>
+                    <div>
+                      <div style={{ fontWeight: 700, fontSize: 14 }}>{txt.label}</div>
+                      <div style={{ fontSize: 12, color: C.inkSoft, marginTop: 2 }}>{txt.desc}</div>
+                    </div>
+                  </button>
+                );
+              })}
             </div>
           </div>
         )}
@@ -619,12 +800,21 @@ export default function CareerSurvivalGame() {
             </div>
 
             <div className="text-center my-4">
+              <span
+                className="inline-block px-3 py-1 rounded-full text-xs font-bold mb-2"
+                style={{ background: job.soft, color: job.color }}
+              >
+                {endingTier.title}
+              </span>
               <div style={{ fontSize: 13, color: C.inkSoft }}>{form.name}님의 예상 근로 가능 연령</div>
               <div style={{ fontFamily: FONT_DISPLAY, fontSize: 56, color: job.color, lineHeight: 1.1 }}>
                 {workAge}<span style={{ fontSize: 22 }}>세</span>
               </div>
               <div style={{ fontSize: 13, color: C.inkSoft }}>
                 현재 {form.age}세 · {job.label} · 지속가능성 점수 {sustainability}점
+              </div>
+              <div style={{ fontSize: 12, color: C.inkSoft, marginTop: 4, fontStyle: 'italic' }}>
+                "{endingTier.desc}"
               </div>
             </div>
 
@@ -646,16 +836,19 @@ export default function CareerSurvivalGame() {
             <div className="rounded-2xl p-4 mb-4" style={{ background: C.bg }}>
               <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 8 }}>나의 5단계 선택 일지</div>
               <div className="flex flex-wrap gap-2">
-                {log.map((c, i) => (
-                  <div
-                    key={i}
-                    className="flex items-center gap-1 px-2 py-1 rounded-full text-xs"
-                    style={{ background: '#fff', border: `1px solid ${C.trailBg}` }}
-                  >
-                    <c.icon size={12} color={job.color} />
-                    {c.label}
-                  </div>
-                ))}
+                {log.map((c, i) => {
+                  const txt = CHOICE_TEXT_BY_JOB[job.id]?.[c.id] || { label: c.label };
+                  return (
+                    <div
+                      key={i}
+                      className="flex items-center gap-1 px-2 py-1 rounded-full text-xs"
+                      style={{ background: '#fff', border: `1px solid ${C.trailBg}` }}
+                    >
+                      <c.icon size={12} color={job.color} />
+                      {txt.label}
+                    </div>
+                  );
+                })}
               </div>
             </div>
 
